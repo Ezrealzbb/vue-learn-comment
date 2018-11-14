@@ -31,6 +31,7 @@ const startTagOpen = new RegExp(`^<${qnameCapture}`)
 const startTagClose = /^\s*(\/?)>/
 
 // endTag 匹配结束标签
+// /^<\/((?:[a-zA-Z_][\w\-\.]*\:)?[a-zA-Z_][\w\-\.]*)[^>]*>/
 const endTag = new RegExp(`^<\\/${qnameCapture}[^>]*>`)
 
 // 匹配doc头部
@@ -148,6 +149,34 @@ export function parseHTML (html, options) {
         }
 
         // Start tag:
+        // 如果有一个 
+        // <div v-if="isSuccessed" v-for="item in list"></div>
+        // 则startTagMatch 匹配出来的结果应该是：
+        // {
+        //     tagName: 'div',
+        //     attrs: [
+        //       [
+        //         `v-if="isSuccessed"`,
+        //         'v-if',
+        //         '=',
+        //         'isSuccessed',
+        //         undefined,
+        //         undefined
+        //       ],
+        //       [
+        //         `v-for="item in list"`,
+        //         'v-for',
+        //         '=',
+        //         'item in list',
+        //         undefined,
+        //         undefined
+        //       ],
+        //       start: 0,
+        //       unarySlash: undefined,
+        //       // 第一个闭合标签左边
+        //       end: 46
+        //     ],
+        // }
         const startTagMatch = parseStartTag()
         if (startTagMatch) {
           handleStartTag(startTagMatch)
@@ -234,19 +263,31 @@ export function parseHTML (html, options) {
     const start = html.match(startTagOpen)
     if (start) {
       const match = {
-        // 
+        // div
         tagName: start[1],
         attrs: [],
+        // 缓存着这个标签的起始位置
         start: index
       }
+      // 游标向前移动 （标签名+1）个位置
       advance(start[0].length)
       let end, attr
+      // 如果还没有匹配到开始标签的 ">" ，并且还有属性的情况下
+      // 匹配属性，并且将匹配的结果保存至 match
+      // 如果标签为<div v-if="item in list"></div>
+      // 则 attr = ["v-if="item in list"", "v-if", "=", "item in list", undefined, undefined]
       while (!(end = html.match(startTagClose)) && (attr = html.match(attribute))) {
         advance(attr[0].length)
         match.attrs.push(attr)
       }
+      // 如果标签为 <br />
+      // 则end 为  [" />", "/"]，是一元标签
+      // 如果标签为 <div>
+      // 则end为 [">"]
       if (end) {
+        // match.narySlash = '/'
         match.unarySlash = end[1]
+        // 向前移动到闭合右标签之后
         advance(end[0].length)
         match.end = index
         return match
