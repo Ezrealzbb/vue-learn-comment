@@ -140,10 +140,14 @@ export function parseHTML (html, options) {
         }
 
         // End tag:
+        // 结束标签 </div>
+        // ["</div>", "div"]
         const endTagMatch = html.match(endTag)
         if (endTagMatch) {
           const curIndex = index
+          // 游标向前移动
           advance(endTagMatch[0].length)
+          // 参数：结束标签名，匹配前的游标，匹配后的游标
           parseEndTag(endTagMatch[1], curIndex, index)
           continue
         }
@@ -249,6 +253,10 @@ export function parseHTML (html, options) {
   }
 
   // Clean up any remaining tags
+  // 清除stack剩余的标签，例如
+  // <article><section></section></article><div>
+  // 最后还剩余[div]
+  // 此时调用，parseEndTag中的pos = 0，stack.length = 0，会被直接清空
   parseEndTag()
 
   function advance (n) {
@@ -286,6 +294,7 @@ export function parseHTML (html, options) {
       // 则end为 [">"]
       if (end) {
         // match.narySlash = '/'
+        // 辅助判断是否是一元标签，特别是自定义组件时：<my-component />
         match.unarySlash = end[1]
         // 向前移动到闭合右标签之后
         advance(end[0].length)
@@ -308,6 +317,9 @@ export function parseHTML (html, options) {
       }
     }
 
+    // isUnaryTag 方法由编译器选项传入，判断是否是一个原生的一元标签
+    // 如果自定义组件是一元标签，则unarySlash是 '/' 取 true
+    // 否则是 undefined 取 false
     const unary = isUnaryTag(tagName) || !!unarySlash
 
     const l = match.attrs.length
@@ -321,6 +333,9 @@ export function parseHTML (html, options) {
         if (args[5] === '') { delete args[5] }
       }
       const value = args[3] || args[4] || args[5] || ''
+      // 解决属性名换行和tab时，在浏览器下会发生 &#10、&#9 的转义，因此要做兼容处理
+      // chrome中a标签的href 有此行为
+      // IE中所有属性都有此行为
       const shouldDecodeNewlines = tagName === 'a' && args[1] === 'href'
         ? options.shouldDecodeNewlinesForHref
         : options.shouldDecodeNewlines
@@ -340,6 +355,7 @@ export function parseHTML (html, options) {
     }
   }
 
+  // parseEndTag('div', startIndex, endIndex)
   function parseEndTag (tagName, start, end) {
     let pos, lowerCasedTagName
     if (start == null) start = index
@@ -377,6 +393,7 @@ export function parseHTML (html, options) {
         }
       }
 
+      // 如果 中间有存在没有匹配的tag，则直接删除
       // Remove the open elements from the stack
       stack.length = pos
       lastTag = pos && stack[pos - 1].tag
