@@ -92,12 +92,12 @@ export function parseHTML (html, options) {
   while (html) {
     last = html
     // Make sure we're not in a plaintext content element like script/style
-    // 如果是纯文本标签
+    // 如果不是纯文本标签
     if (!lastTag || !isPlainTextElement(lastTag)) {
       // textEnd 保存html中 < 的位置
       let textEnd = html.indexOf('<')
 
-      // 当textEnd为0
+      // 当textEnd为0，则html是以 < 开头
       if (textEnd === 0) {
         // Comment:
         // 注释节点
@@ -110,7 +110,7 @@ export function parseHTML (html, options) {
             // 如果shouldKeepComment = true，则保留且渲染html模板中的注释
             // 默认是false
             if (options.shouldKeepComment) {
-              // 截取注释
+              // 解析注释
               options.comment(html.substring(4, commentEnd))
             }
             // 调整游标，向前走3位，出 -->范围
@@ -181,6 +181,7 @@ export function parseHTML (html, options) {
         //       end: 46
         //     ],
         // }
+        // 解析开始标签，得到解析结果：startTagMatch
         const startTagMatch = parseStartTag()
         if (startTagMatch) {
           handleStartTag(startTagMatch)
@@ -191,6 +192,7 @@ export function parseHTML (html, options) {
         }
       }
 
+      // 当字符为“<1<2<3时”
       let text, rest, next
       if (textEnd >= 0) {
         rest = html.slice(textEnd)
@@ -201,11 +203,14 @@ export function parseHTML (html, options) {
           !conditionalComment.test(rest)
         ) {
           // < in plain text, be forgiving and treat it as text
+          // 当做普通字符串处理
           next = rest.indexOf('<', 1)
           if (next < 0) break
+          // 如果后面的字符串还有 < 则游标向前移动，rest继续赋值
           textEnd += next
           rest = html.slice(textEnd)
         }
+        // 循环到最后，textEnd作为向前移动的游标，重新设置advance
         text = html.substring(0, textEnd)
         advance(textEnd)
       }
@@ -309,9 +314,13 @@ export function parseHTML (html, options) {
     const unarySlash = match.unarySlash
 
     if (expectHTML) {
+      // 当栈顶是 p 标签并且 新的起始标签不是 Phrasing flow ，例如h2，
+      // 则自动插入</p>
       if (lastTag === 'p' && isNonPhrasingTag(tagName)) {
         parseEndTag(lastTag)
       }
+      // 如果是可以省略闭合的标签：例如 <p>dadadaw
+      // 则自动闭合：<p>dadadaw</p>
       if (canBeLeftOpenTag(tagName) && lastTag === tagName) {
         parseEndTag(tagName)
       }
@@ -345,11 +354,13 @@ export function parseHTML (html, options) {
       }
     }
 
+    // 如果不是可以忽略闭合的一元标签，则将标签压入栈内
     if (!unary) {
       stack.push({ tag: tagName, lowerCasedTag: tagName.toLowerCase(), attrs: attrs })
       lastTag = tagName
     }
 
+    // 添加开始标签
     if (options.start) {
       options.start(tagName, attrs, unary, match.start, match.end)
     }
@@ -366,6 +377,7 @@ export function parseHTML (html, options) {
     }
 
     // Find the closest opened tag of the same type
+    // 寻找开始标签在stack中的位置
     if (tagName) {
       for (pos = stack.length - 1; pos >= 0; pos--) {
         if (stack[pos].lowerCasedTag === lowerCasedTagName) {
@@ -379,6 +391,8 @@ export function parseHTML (html, options) {
 
     if (pos >= 0) {
       // Close all the open elements, up the stack
+      // 当只写了闭合标签，且之前没有写开始标签时 pos = -1
+      // 当只写了开始标签，pos = 0，先警告同时自动闭合
       for (let i = stack.length - 1; i >= pos; i--) {
         if (process.env.NODE_ENV !== 'production' &&
           (i > pos || !tagName) &&
@@ -388,6 +402,7 @@ export function parseHTML (html, options) {
             `tag <${stack[i].tag}> has no matching end tag.`
           )
         }
+        // 闭合未闭合的标签
         if (options.end) {
           options.end(stack[i].tag, start, end)
         }
@@ -398,10 +413,12 @@ export function parseHTML (html, options) {
       stack.length = pos
       lastTag = pos && stack[pos - 1].tag
     } else if (lowerCasedTagName === 'br') {
+      // 当pos = -1，且结束标签是</br>时，将其解析为<br />
       if (options.start) {
         options.start(tagName, [], true, start, end)
       }
     } else if (lowerCasedTagName === 'p') {
+       // 当pos = -1，且结束标签是</p>时，将其解析为<p></p>
       if (options.start) {
         options.start(tagName, [], false, start, end)
       }
