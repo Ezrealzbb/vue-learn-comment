@@ -19,14 +19,33 @@ import {
   pluckModuleFunction
 } from '../helpers'
 
+// 常用的指令表达式
+// 匹配 @ v-on
 export const onRE = /^@|^v-on:/
+// 匹配v- @ :
 export const dirRE = /^v-|^@|^:/
+// 匹配for
+// 如果是 item in list，则匹配到 item list
 export const forAliasRE = /([^]*?)\s+(?:in|of)\s+([^]*)/
+// 匹配 forAliasRE 捕获的第一个字符
+// 两个捕获组：([^,\}\]]*) 匹配不包含 , } ] 的字符串，并且之前有 , 例如：, index
+// 如果是：item in list，则forAliasRE匹配第一个是 item；forIteratorRE匹配不到
+
+// 如果是：(item, idx) in list，则forAliasRE匹配第一个是item, idx；forIteratorRE匹配结果是： [", idx", " idx"]
+
+// 如果是：(value, key, idx) in list, 则forAliasRE匹配第一个是(value, key, idx)；forIteratorRE匹配结果是：[", key, idx", " key", " idx"]
 export const forIteratorRE = /,([^,\}\]]*)(?:,([^,\}\]]*))?$/
+// 匹配左右箭头包裹的字符串，用于去除forAliasRE后包含（）的字符
+// `(item, idx)`.replace(stripParensRE, '') === `item, idx`
+// 下一步可以便可以交给 forIteratorRE 处理
 const stripParensRE = /^\(|\)$/g
 
+// 匹配冒号是否存在：`<img v-on:click.stop="1" />`.match(argRE) === click.stop="1" />
 const argRE = /:(.*)$/
+// 匹配数字绑定
 export const bindRE = /^:|^v-bind:/
+// 匹配修饰符：`v-on:click.stop`.match(modifierRE) === ['.stop']
+// 通过此可以得到修饰符
 const modifierRE = /\.[^.]+/g
 
 const decodeHTMLCached = cached(he.decode)
@@ -52,6 +71,7 @@ export function createASTElement (
     type: 1,
     tag,
     attrsList: attrs,
+    // 将数组的属性设置为dictionary
     attrsMap: makeAttrsMap(attrs),
     parent,
     children: []
@@ -65,16 +85,43 @@ export function parse (
   template: string,
   options: CompilerOptions
 ): ASTElement | void {
+  // 封装输出 console.error()
   warn = options.warn || baseWarn
 
+  // 是否是 pre 标签
   platformIsPreTag = options.isPreTag || no
+  // 是否要用元素的原生属性进行绑定
   platformMustUseProp = options.mustUseProp || no
+  // 获取命名空间
   platformGetTagNamespace = options.getTagNamespace || no
 
+  /**
+   * web平台
+   * options.modules = [
+    {
+      staticKeys: ['staticClass'],
+      transformNode,
+      genData
+    },
+    {
+      staticKeys: ['staticStyle'],
+      transformNode,
+      genData
+    },
+    {
+      preTransformNode
+    }
+  ] 
+  */
+  // 依次提取options.modules里的 transforms、preTransformNode、postTransformNode
+  // 分别聚合在一个变量中
+  // web平台，拿到[transformNode, transformNode]
   transforms = pluckModuleFunction(options.modules, 'transformNode')
+  // web平台，拿到[preTransformNode]
   preTransforms = pluckModuleFunction(options.modules, 'preTransformNode')
+  // web平台，拿到[]
   postTransforms = pluckModuleFunction(options.modules, 'postTransformNode')
-
+  // vue实例选项：delimiters，默认是['{{', '}}']
   delimiters = options.delimiters
 
   const stack = []
@@ -85,6 +132,7 @@ export function parse (
   let inPre = false
   let warned = false
 
+  // 只警告一次
   function warnOnce (msg) {
     if (!warned) {
       warned = true
