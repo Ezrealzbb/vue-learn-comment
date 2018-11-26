@@ -113,6 +113,7 @@ export function parse (
     }
   ] 
   */
+  // 这三个函数和一般的process*的函数作用一致，只是平台不同的差异因此命名不同
   // 依次提取options.modules里的 transforms、preTransformNode、postTransformNode
   // 分别聚合在一个变量中
   // web平台，拿到[transformNode, transformNode]
@@ -140,6 +141,7 @@ export function parse (
     }
   }
 
+  // 闭合标签
   function closeElement (element) {
     // check pre state
     if (element.pre) {
@@ -165,6 +167,8 @@ export function parse (
     start (tag, attrs, unary) {
       // check namespace.
       // inherit parent ns if there is one
+      // 获取命名空间，默认采用父级的，如果不存在则重新获取
+      // 命名空间主要针对 svg 标签和 mathH
       const ns = (currentParent && currentParent.ns) || platformGetTagNamespace(tag)
 
       // handle IE svg bug
@@ -173,11 +177,13 @@ export function parse (
         attrs = guardIESVGBug(attrs)
       }
 
+      // element 是 ast的节点
       let element: ASTElement = createASTElement(tag, attrs, currentParent)
       if (ns) {
         element.ns = ns
       }
 
+      // style、script标签也解析成ast但是不会处理
       if (isForbiddenTag(element) && !isServerRendering()) {
         element.forbidden = true
         process.env.NODE_ENV !== 'production' && warn(
@@ -188,11 +194,14 @@ export function parse (
       }
 
       // apply pre-transforms
+      // web平台，拿到[preTransformNode]，只有1个函数 preTransformNode
       for (let i = 0; i < preTransforms.length; i++) {
         element = preTransforms[i](element, options) || element
       }
 
       if (!inVPre) {
+        // 如果element存在v-pre，则设置element.pre = true
+        // 根据vue官方文档，一旦被设置为pre，则子节点全部不做编译
         processPre(element)
         if (element.pre) {
           inVPre = true
@@ -212,6 +221,10 @@ export function parse (
         processElement(element, options)
       }
 
+      // 检测Root根标签，必须有且仅有一个根元素
+      // 1. 根节点不能是slot（外界可能传入多节点）
+      // 2. 根节点不能是template（template不会渲染为真实dom，可能使得内部多个节点暴露出来）
+      // 3. 根节点不能包含v-for，否则会渲染多个节点
       function checkRootConstraints (el) {
         if (process.env.NODE_ENV !== 'production') {
           if (el.tag === 'slot' || el.tag === 'template') {
@@ -234,7 +247,19 @@ export function parse (
         root = element
         checkRootConstraints(root)
       } else if (!stack.length) {
+        // root已存在，并且stack已清空，则说明字符串已经解析完毕
+        // 但是此时仍然调用options.start，则说明不止有一个根元素
+        // 例如：
+        // <template>
+        //   <div id="a" v-if="isShow"></div>
+        //   <div id="b" v-else-if></div>
+        //   <div id="c" v-else></div>
+        // </template>
+        
         // allow root elements with v-if, v-else-if and v-else
+        // 通过上面的例子，此时root是已解析完毕的 div.#a，element是刚刚开始解析的 div.#b
+        // 添加ifCondition进入root
+        // 实际上，自己也会被添加到子的ifCondition数组中
         if (root.if && (element.elseif || element.else)) {
           checkRootConstraints(element)
           addIfCondition(root, {
@@ -250,13 +275,18 @@ export function parse (
         }
       }
       if (currentParent && !element.forbidden) {
+        // 自己是v-else或者v-else-if，则将自己添加到之前一个元素的ifCondition中
+        // 当使用了条件指令，则自己是不会成为parent的child的
         if (element.elseif || element.else) {
           processIfConditions(element, currentParent)
         } else if (element.slotScope) { // scoped slot
+          // 如果是slot，则自己也不会添加到parent的child
           currentParent.plain = false
           const name = element.slotTarget || '"default"'
           ;(currentParent.scopedSlots || (currentParent.scopedSlots = {}))[name] = element
         } else {
+          // 把自己加到父组件中
+          // 设置自己的父组件
           currentParent.children.push(element)
           element.parent = currentParent
         }
@@ -453,13 +483,16 @@ function processIf (el) {
   }
 }
 
-function processIfConditions (el, parent) {
+function processIfConditions(el, parent) {
+  // v-else 的前一个元素
   const prev = findPrevElement(parent.children)
+  // 如果前一个元素存在v-if，则将自己添加到对方的ifCondition中
   if (prev && prev.if) {
     addIfCondition(prev, {
       exp: el.elseif,
       block: el
     })
+    // 如果前一个元素不存在v-if，则报错
   } else if (process.env.NODE_ENV !== 'production') {
     warn(
       `v-${el.elseif ? ('else-if="' + el.elseif + '"') : 'else'} ` +
@@ -468,6 +501,7 @@ function processIfConditions (el, parent) {
   }
 }
 
+// 寻找条件指令之前的元素，如果中间穿插了文本节点，则会被忽略并且pop出parent的children
 function findPrevElement (children: Array<any>): ASTElement | void {
   let i = children.length
   while (i--) {
