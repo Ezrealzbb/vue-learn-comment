@@ -43,13 +43,15 @@ const comment = /^<!\--/
 // 条件注释，常用于IE
 const conditionalComment = /^<!\[/
 
+// 在老版本的火狐，存在bug，一般匹配出来的g === undefined 
+// 老版本火狐则是 ''
 let IS_REGEX_CAPTURING_BROKEN = false
 'x'.replace(/x(.)?/g, function (m, g) {
   IS_REGEX_CAPTURING_BROKEN = g === ''
 })
 
 // Special Elements (can contain anything)
-// 纯文本标签
+// 纯文本标签，里面的内容不做处理
 export const isPlainTextElement = makeMap('script,style,textarea', true)
 const reCache = {}
 
@@ -79,15 +81,15 @@ export function parseHTML (html, options) {
   // 用于保存标签的栈
   const stack = []
   const expectHTML = options.expectHTML
-  // 是否是一元标签
+  // 是否是一元标签，比如input
   const isUnaryTag = options.isUnaryTag || no
-  // 是否是可以忽略闭合标签的非一元标签
+  // 是否是可以忽略闭合标签的非一元标签，比如 p
   const canBeLeftOpenTag = options.canBeLeftOpenTag || no
   // 字符串流的索引位置
   let index = 0
   // 还剩余多少字符串 
   let last,
-    // 标签栈顶的tag
+    // 标签栈顶的tag，表示当前最近的元素
     lastTag
   while (html) {
     last = html
@@ -224,26 +226,41 @@ export function parseHTML (html, options) {
         options.chars(text)
       }
     } else {
+      // 栈顶有最近的元素，并且是纯文本标签script style等
       let endTagLength = 0
       const stackedTag = lastTag.toLowerCase()
+      // 这个正则是用于匹配纯文本标签的后半部分
+      // 例如 <textarea>adwdawad</textarea>
+      // 此时 lastTag = textarea；html = adwdawad</textarea><div>aaaa</div>
+      // reStackedTag 前半部分，匹配全字符集，也就是纯文本内容，后半部分匹配这个纯文本标签的标签名字
       const reStackedTag = reCache[stackedTag] || (reCache[stackedTag] = new RegExp('([\\s\\S]*?)(</' + stackedTag + '[^>]*>)', 'i'))
       const rest = html.replace(reStackedTag, function (all, text, endTag) {
+        // 这有3个参数
+        // all 是 匹配到的全部字符，基本上等于输入字符
+        // text 是 文本内容，对应第一个捕获组的内容
+        // endTag 是 结束标签，对应第二个捕获组的内容
         endTagLength = endTag.length
         if (!isPlainTextElement(stackedTag) && stackedTag !== 'noscript') {
           text = text
             .replace(/<!\--([\s\S]*?)-->/g, '$1') // #7298
             .replace(/<!\[CDATA\[([\s\S]*?)]]>/g, '$1')
         }
+        // 这个是在umd版本中解析html而用，因此要时刻注意浏览器的默认行为
         if (shouldIgnoreFirstNewline(stackedTag, text)) {
           text = text.slice(1)
         }
+        // 调用这个方法，告知编译器将次当做纯文本对待
         if (options.chars) {
           options.chars(text)
         }
         return ''
       })
+      // rest是去除了文本标签后的余下的内容，对上文的textarea而言，则 rest = <div>aaaa</div>
+      // html.length - rest.length 则表示游标向前移动，跨过这个纯文本标签
       index += html.length - rest.length
       html = rest
+      // 处理结束标签，上文的例子看实参是：textarea、textarea的起始位置、textarea的结束位置
+      // index: start(x) + plainTextLength(0) + endTagLength(x)
       parseEndTag(stackedTag, index - endTagLength, index)
     }
 
@@ -264,6 +281,7 @@ export function parseHTML (html, options) {
   // 此时调用，parseEndTag中的pos = 0，stack.length = 0，会被直接清空
   parseEndTag()
 
+  // 移动游标
   function advance (n) {
     index += n
     html = html.substring(n)
