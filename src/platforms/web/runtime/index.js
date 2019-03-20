@@ -45,6 +45,7 @@ Vue.prototype.$mount = function (
   return mountComponent(this, el, hydrating)
 }
 
+// 加载 vue-devtools
 // devtools global hook
 /* istanbul ignore next */
 if (inBrowser) {

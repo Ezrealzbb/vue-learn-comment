@@ -35,8 +35,8 @@ export function toggleObserving (value: boolean) {
  * collect dependencies and dispatch updates.
  */
 export class Observer {
-  value: any;
-  dep: Dep;
+  value: any;// 原始数据值
+  dep: Dep; // 依赖收集筐
   vmCount: number; // number of vms that has this object as root $data
 
   constructor (value: any) {
@@ -119,6 +119,7 @@ function copyAugment (target: Object, src: Object, keys: Array<string>) {
  * or the existing observer if the value already has one.
  */
 export function observe (value: any, asRootData: ?boolean): Observer | void {
+  // 如果不是对象或者 VNode 节点，那么直接 return
   if (!isObject(value) || value instanceof VNode) {
     return
   }
@@ -155,6 +156,8 @@ export function defineReactive (
   // 如果是对象，则可以通过__ob__.dep访问自己的观察者们
   const dep = new Dep()
 
+  // 如果对象的configurable = false
+  // 则不可以设置set get
   const property = Object.getOwnPropertyDescriptor(obj, key)
   if (property && property.configurable === false) {
     return
@@ -163,6 +166,9 @@ export function defineReactive (
   // cater for pre-defined getter/setters
   const getter = property && property.get
   const setter = property && property.set
+  // 之所以在深度观测之前不取值是因为属性原本的 getter 由用户定义，用户可能在 getter 中做任何意想不到的事情，这么做是出于避免引发不可预见行为的考虑
+  // 如果只有!getter，则经过defineReactive函数处理后，原本该属性不会被深度观测，但是重新赋值之后，新的值却被观测了。
+  // 所以当存在setter时，直接取值进行观测即可
   if ((!getter || setter) && arguments.length === 2) {
     val = obj[key]
   }

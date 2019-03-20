@@ -1,14 +1,20 @@
 /* @flow */
 
 import config from 'core/config'
+// warn 是用于在 console 和 webpack 控制台输出警告信息
+// cached 是借助闭包进行缓存的函数
 import { warn, cached } from 'core/util/index'
 import { mark, measure } from 'core/util/perf'
 
+// 从 runtime 导出 Vue 的核心实现
 import Vue from './runtime/index'
 import { query } from './util/index'
+// 将字符串编译成 render Function
 import { compileToFunctions } from './compiler/index'
+// 兼容性：是否编译浏览器 attr 出现的\n，是否编译 a 标签的 href 出现的\n
 import { shouldDecodeNewlines, shouldDecodeNewlinesForHref } from './util/compat'
 
+// 缓存字符串模板,每个 字符串都只查询一次
 const idToTemplate = cached(id => {
   const el = query(id)
   return el && el.innerHTML

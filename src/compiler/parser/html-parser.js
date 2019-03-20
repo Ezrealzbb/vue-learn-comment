@@ -349,6 +349,7 @@ export function parseHTML (html, options) {
     // 否则是 undefined 取 false
     const unary = isUnaryTag(tagName) || !!unarySlash
 
+    // 遍历attrs，优化结构
     const l = match.attrs.length
     const attrs = new Array(l)
     for (let i = 0; i < l; i++) {

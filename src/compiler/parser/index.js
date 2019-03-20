@@ -168,7 +168,7 @@ export function parse (
       // check namespace.
       // inherit parent ns if there is one
       // 获取命名空间，默认采用父级的，如果不存在则重新获取
-      // 命名空间主要针对 svg 标签和 mathH
+      // 命名空间主要针对 svg 标签和 math
       const ns = (currentParent && currentParent.ns) || platformGetTagNamespace(tag)
 
       // handle IE svg bug

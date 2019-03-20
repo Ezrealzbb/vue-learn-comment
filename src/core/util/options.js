@@ -141,6 +141,7 @@ strats.data = function (
 /**
  * Hooks and props are merged as arrays.
  */
+// 合并生命周期函数，如果parentVal存在，则parentVal.concat(childVal)
 function mergeHook (
   parentVal: ?Array<Function>,
   childVal: ?Function | ?Array<Function>
@@ -283,6 +284,16 @@ export function validateComponentName (name: string) {
  * Ensure all props option syntax are normalized into the
  * Object-based format.
  */
+// 规范化 Props 成为
+// props: {
+//   someData1: {
+//     type: Number
+//   },
+//   someData2: {
+//     type: String,
+//     default: ''
+//   }
+// }
 function normalizeProps (options: Object, vm: ?Component) {
   const props = options.props
   if (!props) return
@@ -348,6 +359,10 @@ function normalizeInject (options: Object, vm: ?Component) {
 /**
  * Normalize raw function directives into object format.
  */
+// 规范化 directive 成为
+// directives = {
+//   key: { bind: defFunc, update: defFunc }
+// }
 function normalizeDirectives (options: Object) {
   const dirs = options.directives
   if (dirs) {
@@ -380,6 +395,7 @@ export function mergeOptions (
   vm?: Component
 ): Object {
   if (process.env.NODE_ENV !== 'production') {
+    // 检测组件名是否合乎要求
     checkComponents(child)
   }
 

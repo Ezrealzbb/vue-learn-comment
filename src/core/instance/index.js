@@ -5,12 +5,14 @@ import { eventsMixin } from './events'
 import { lifecycleMixin } from './lifecycle'
 import { warn } from '../util/index'
 
+// Vue 是一个普通的函数
 function Vue (options) {
   if (process.env.NODE_ENV !== 'production' &&
     !(this instanceof Vue)
   ) {
     warn('Vue is a constructor and should be called with the `new` keyword')
   }
+  // _init方法并未执行，只是此处进行了声明
   this._init(options)
 }
 
@@ -29,4 +31,5 @@ lifecycleMixin(Vue)
 // 原型添加$nextTick，_render等
 renderMixin(Vue)
 
+// 导出 Vue 这个函数
 export default Vue

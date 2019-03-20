@@ -2,6 +2,7 @@ const path = require('path')
 
 const resolve = p => path.resolve(__dirname, '../', p)
 
+// 所有模块的别名
 module.exports = {
   vue: resolve('src/platforms/web/entry-runtime-with-compiler'),
   compiler: resolve('src/compiler'),

@@ -12,7 +12,9 @@ import { extend, mergeOptions, formatComponentName } from '../util/index'
 
 let uid = 0
 
-export function initMixin (Vue: Class<Component>) {
+// 在原型链上添加 _init方法
+export function initMixin(Vue: Class<Component>) {
+  // options就是传入的配置对象
   Vue.prototype._init = function (options?: Object) {
     const vm: Component = this
     // a uid
@@ -20,6 +22,7 @@ export function initMixin (Vue: Class<Component>) {
 
     let startTag, endTag
     /* istanbul ignore if */
+    // 检测整个 vue 创建过程的性能
     if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
       startTag = `vue-perf-start:${vm._uid}`
       endTag = `vue-perf-end:${vm._uid}`
@@ -45,6 +48,7 @@ export function initMixin (Vue: Class<Component>) {
       )
     }
     /* istanbul ignore else */
+    // 设置渲染函数的作用域
     if (process.env.NODE_ENV !== 'production') {
       initProxy(vm)
     } else {
@@ -80,7 +84,7 @@ export function initMixin (Vue: Class<Component>) {
     }
   }
 }
-
+// 如果是初始化一个组件
 export function initInternalComponent (vm: Component, options: InternalComponentOptions) {
   const opts = vm.$options = Object.create(vm.constructor.options)
   // doing this because it's faster than dynamic enumeration.
@@ -100,6 +104,7 @@ export function initInternalComponent (vm: Component, options: InternalComponent
   }
 }
 
+// 如果是Vue.extend()构造的，递归解析父辈的$options
 export function resolveConstructorOptions (Ctor: Class<Component>) {
   let options = Ctor.options
   if (Ctor.super) {
